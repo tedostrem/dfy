@@ -18,14 +18,6 @@ void screen_init(void) {
   // Reset GPU
   ResetGraph(0);
 
-  // Set the display area of the first buffer
-  //SetDefDispEnv(&screen.disp[0], 0,   0, SCREEN_RES_X, SCREEN_RES_Y);
-  //SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
-
-  //// Set the display area of the second buffer
-  //SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
-  //SetDefDrawEnv(&screen.draw[1], 0,   0, SCREEN_RES_X, SCREEN_RES_Y);
-
   int border_height = (SCREEN_RES_Y - WIDESCREEN_HEIGHT) / 2;
   SetDefDrawEnv(&screen.draw[0], 0, border_height, SCREEN_RES_X, WIDESCREEN_HEIGHT);
   SetDefDrawEnv(&screen.draw[1], 0, border_height, SCREEN_RES_X, WIDESCREEN_HEIGHT);
@@ -38,8 +30,8 @@ void screen_init(void) {
   screen.draw[1].isbg = 1;
 
   // Set the background clear color
-  setRGB0(&screen.draw[0], 63, 0, 127); // dark purple
-  setRGB0(&screen.draw[1], 63, 0, 127); // dark purple
+  setRGB0(&screen.draw[0], 40, 42, 54); // dark purple
+  setRGB0(&screen.draw[1], 40, 42, 54); // dark purple
 
   // Set the current initial buffer
   currbuff = 0;

@@ -98,7 +98,7 @@ void Setup(void) {
   // Initializes the camera object
   cam.position.vx = 300;
   cam.position.vy = -1000;
-  cam.position.vz = -2000;
+  cam.position.vz = -1000;
   cam.lookat = (MATRIX){0};
 }
 
@@ -169,41 +169,28 @@ void Update(void) {
   for (i = 0; i < 24; i += 4) {
     polyg4 = (POLY_G4*) get_next_prim();
     setPolyG4(polyg4);
-    setRGB0(polyg4, 255, 0, 255);
+    setRGB0(polyg4, 5, 0, 255);
     setRGB1(polyg4, 255, 255, 0);
     setRGB2(polyg4, 0, 255, 255);
     setRGB3(polyg4, 0, 255, 0);
 
-    // Loading the first 3 vertices (the GTE can only perform a max. of 3 vectors at a time)
-    gte_ldv0(&cube0.vertices[cube0.faces[i + 0]]);
-    gte_ldv1(&cube0.vertices[cube0.faces[i + 1]]);
-    gte_ldv2(&cube0.vertices[cube0.faces[i + 2]]);
+    nclip = RotAverageNclip4(
+      &cube0.vertices[cube0.faces[i + 0]],
+      &cube0.vertices[cube0.faces[i + 1]],
+      &cube0.vertices[cube0.faces[i + 2]],
+      &cube0.vertices[cube0.faces[i + 3]],
+      (long*)&polyg4->x0,
+      (long*)&polyg4->x1,
+      (long*)&polyg4->x2,
+      (long*)&polyg4->x3,
+      &p, &otz, &flg
+    );
 
-    gte_rtpt();
+    if(nclip <= 0) continue;
 
-    gte_nclip();
-    gte_stopz(&nclip);
-
-    if (nclip >= 0) {
-      // Store/save the transformed projected coord of the first vertex
-      gte_stsxy0(&polyg4->x0);
-
-      // Load the last 4th vertex
-      gte_ldv0(&cube0.vertices[cube0.faces[i + 3]]);
-
-      // Project & transform the remaining 4th vertex
-      gte_rtps();
-
-      // Store the transformed last vertices
-      gte_stsxy3(&polyg4->x1, &polyg4->x2, &polyg4->x3);
-
-      gte_avsz4();
-      gte_stotz(&otz);
-
-      if ((otz > 0) && (otz < OT_LEN)) {
-        addPrim(get_ot_at(get_current_buffer(), otz), polyg4);
-        increment_next_prim(sizeof(POLY_G4));
-      }
+    if ((otz > 0) && (otz < OT_LEN)) {
+      addPrim(get_ot_at(get_current_buffer(), otz), polyg4);
+      increment_next_prim(sizeof(POLY_G4));
     }
   }
 
