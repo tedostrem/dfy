@@ -96,9 +96,9 @@ void Setup(void) {
   reset_next_prim(get_current_buffer());
 
   // Initializes the camera object
-  cam.position.vx = 500;
+  cam.position.vx = 300;
   cam.position.vy = -1000;
-  cam.position.vz = -1500;
+  cam.position.vz = -2000;
   cam.lookat = (MATRIX){0};
 }
 
