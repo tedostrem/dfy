@@ -1,7 +1,7 @@
 #include "display.h"
 #include "globals.h"
 
-static double_buffer screen;           // Struct to hold the display & draw buffers
+static struct double_buffer screen;           // Struct to hold the display & draw buffers
 static u_short currbuff;            // Holds the current buffer number (0 or 1)
 
 u_short get_current_buffer(void) {

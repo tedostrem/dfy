@@ -1,10 +1,10 @@
 #include "camera.h"
 
-void VectorCross(VECTOR *a, VECTOR *b, VECTOR *out) {
+void vector_cross(VECTOR *a, VECTOR *b, VECTOR *out) {
   OuterProduct12(a, b, out);
 }
 
-void LookAt(camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up) {
+void look_at(struct camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up) {
   VECTOR xright;
   VECTOR yup;
   VECTOR zforward;
@@ -17,10 +17,10 @@ void LookAt(camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up) {
   zforward.vz = target->vz - eye->vz;
   VectorNormal(&zforward, &z);
 
-  VectorCross(&z, up, &xright);
+  vector_cross(&z, up, &xright);
   VectorNormal(&xright, &x);
 
-  VectorCross(&z, &x, &yup);
+  vector_cross(&z, &x, &yup);
   VectorNormal(&yup, &y);
 
   cam->lookat.m[0][0] = x.vx; cam->lookat.m[0][1] = x.vy; cam->lookat.m[0][2] = x.vz;

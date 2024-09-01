@@ -13,10 +13,10 @@
 #define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
 #define SCREEN_Z 320
 
-typedef struct {
+struct double_buffer {
   DRAWENV draw[2];
   DISPENV disp[2];
-} double_buffer;
+};
 
 u_short get_current_buffer(void);
 

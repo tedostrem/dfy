@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Vertices and face indices
 ///////////////////////////////////////////////////////////////////////////////
-typedef struct cube {
+struct cube {
   SVECTOR rotation;
   VECTOR position;
   VECTOR scale;
@@ -19,15 +19,15 @@ typedef struct cube {
   VECTOR acc;
   SVECTOR vertices[8];
   short faces[24];
-} cube ;
+};
 
-typedef struct floor {
+struct floor {
   SVECTOR rotation;
   VECTOR position;
   VECTOR scale;
   SVECTOR vertices[4];
   short faces[6];
-} floor ;
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Declarations and global variables
@@ -38,9 +38,9 @@ POLY_F3 *polyf3;
 MATRIX worldmat = {0};
 MATRIX viewmat = {0};
 
-camera cam;
+struct camera cam;
 
-cube cube0 = {
+struct cube cube0 = {
   {0, 0, 0},
   {0, -400, 1800},
   {ONE, ONE, ONE},
@@ -66,7 +66,7 @@ cube cube0 = {
   }
 };
 
-floor floor0 = {
+struct floor floor0 = {
   {0, 0, 0},
   {0, 450, 1800},
   {ONE, ONE, ONE},
@@ -151,7 +151,7 @@ void Update(void) {
   }
 
   // Compute the camera Lookat matrix for this frame
-  LookAt(&cam, &cam.position, &cube0.position, &(VECTOR){0, -ONE, 0});
+  look_at(&cam, &cam.position, &cube0.position, &(VECTOR){0, -ONE, 0});
 
   /////////////////////
   // Draw the Cube
