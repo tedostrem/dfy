@@ -32,8 +32,8 @@ struct floor {
 ///////////////////////////////////////////////////////////////////////////////
 // Declarations and global variables
 ///////////////////////////////////////////////////////////////////////////////
-POLY_G4 *polyg4;
-POLY_F3 *polyf3;
+POLY_F4 *cube_polys;
+POLY_F3 *floor_polys;
 
 MATRIX worldmat = {0};
 MATRIX viewmat = {0};
@@ -167,29 +167,26 @@ void Update(void) {
   SetTransMatrix(&viewmat);
 
   for (i = 0; i < 24; i += 4) {
-    polyg4 = (POLY_G4*) get_next_prim();
-    setPolyG4(polyg4);
-    setRGB0(polyg4, 5, 0, 255);
-    setRGB1(polyg4, 255, 255, 0);
-    setRGB2(polyg4, 0, 255, 255);
-    setRGB3(polyg4, 0, 255, 0);
+    cube_polys = (POLY_F4*) get_next_prim();
+    setPolyF4(cube_polys);
+    setRGB0(cube_polys, 255, 121, 198);
 
     nclip = RotAverageNclip4(
       &cube0.vertices[cube0.faces[i + 0]],
       &cube0.vertices[cube0.faces[i + 1]],
       &cube0.vertices[cube0.faces[i + 2]],
       &cube0.vertices[cube0.faces[i + 3]],
-      (long*)&polyg4->x0,
-      (long*)&polyg4->x1,
-      (long*)&polyg4->x2,
-      (long*)&polyg4->x3,
+      (long*)&cube_polys->x0,
+      (long*)&cube_polys->x1,
+      (long*)&cube_polys->x2,
+      (long*)&cube_polys->x3,
       &p, &otz, &flg
     );
 
-    if(nclip <= 0) continue;
+    if(nclip < 0) continue;
 
     if ((otz > 0) && (otz < OT_LEN)) {
-      addPrim(get_ot_at(get_current_buffer(), otz), polyg4);
+      addPrim(get_ot_at(get_current_buffer(), otz), cube_polys);
       increment_next_prim(sizeof(POLY_G4));
     }
   }
@@ -208,29 +205,25 @@ void Update(void) {
   SetTransMatrix(&viewmat);
 
   for (i = 0; i < 6; i += 3) {
-    polyf3 = (POLY_F3*) get_next_prim();
-    setPolyF3(polyf3);
-    setRGB0(polyf3, 255, 255, 0);
+    floor_polys = (POLY_F3*) get_next_prim();
+    setPolyF3(floor_polys);
+    setRGB0(floor_polys, 241, 250, 140);
 
-    gte_ldv0(&floor0.vertices[floor0.faces[i + 0]]);
-    gte_ldv1(&floor0.vertices[floor0.faces[i + 1]]);
-    gte_ldv2(&floor0.vertices[floor0.faces[i + 2]]);
+    nclip = RotAverageNclip3(
+      &floor0.vertices[floor0.faces[i + 0]],
+      &floor0.vertices[floor0.faces[i + 1]],
+      &floor0.vertices[floor0.faces[i + 2]],
+      (long*)&floor_polys->x0,
+      (long*)&floor_polys->x1,
+      (long*)&floor_polys->x2,
+      &p, &otz, &flg
+    );
 
-    gte_rtpt();
+    if (nclip < 0) continue;
 
-    gte_nclip();
-    gte_stopz(&nclip);
-
-    if (nclip >= 0) {
-      gte_stsxy3(&polyf3->x0, &polyf3->x1, &polyf3->x2);
-
-      gte_avsz3();
-      gte_stotz(&otz);
-
-      if ((otz > 0) && (otz < OT_LEN)) {
-        addPrim(get_ot_at(get_current_buffer(), otz), polyf3);
-        increment_next_prim(sizeof(POLY_F3));
-      }
+    if ((otz > 0) && (otz < OT_LEN)) {
+      addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
+      increment_next_prim(sizeof(POLY_F3));
     }
   }
 }
