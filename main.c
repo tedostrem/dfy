@@ -151,7 +151,7 @@ void Update(void) {
   }
 
   // Compute the camera Lookat matrix for this frame
-  look_at(&cam, &cam.position, &cube0.position, &(VECTOR){0, -ONE, 0});
+  camera_look_at(&cam, &cam.position, &cube0.position, &(VECTOR){0, -ONE, 0});
 
   /////////////////////
   // Draw the Cube

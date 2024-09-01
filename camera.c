@@ -4,7 +4,7 @@ void vector_cross(VECTOR *a, VECTOR *b, VECTOR *out) {
   OuterProduct12(a, b, out);
 }
 
-void look_at(struct camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up) {
+void camera_look_at(struct camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up) {
   VECTOR xright;
   VECTOR yup;
   VECTOR zforward;

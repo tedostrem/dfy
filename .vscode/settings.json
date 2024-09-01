@@ -1,0 +1,12 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/*.dep": true,
+        "**/*.o": true,
+        "**/*.elf": true,
+        "**/*.map": true,
+        "**/*.ps-exe": true,
+        "**/*.cue": true,
+        "**/*.iso": true,
+    }
+}

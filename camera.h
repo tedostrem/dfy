@@ -9,6 +9,6 @@ struct camera {
   MATRIX lookat;
 };
 
-void look_at(struct camera* cam, VECTOR *eye, VECTOR *target, VECTOR *up);
+void camera_look_at(struct camera* cam, VECTOR *eye, VECTOR *target, VECTOR *up);
 
 #endif
