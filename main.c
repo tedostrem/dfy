@@ -7,6 +7,12 @@
 #include "display.h"
 #include "joypad.h"
 #include "camera.h"
+#include <stdio.h>
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+#define CUBESIZE 196
+
+VECTOR light_vector = {0, 0, -4096}; // Light coming from the camera direction
 
 ///////////////////////////////////////////////////////////////////////////////
 // Vertices and face indices
@@ -19,6 +25,7 @@ struct cube {
   VECTOR acc;
   SVECTOR vertices[8];
   short faces[24];
+  SVECTOR normals[6];
 };
 
 struct floor {
@@ -46,24 +53,24 @@ struct cube cube0 = {
   {ONE, ONE, ONE},
   {0, 0, 0},
   {0, 1, 0},
+{
+  {-CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},
+  {CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},
+  {CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},
+  {-CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},
+  {-CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},
+  {CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},
+  {CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0},
+  {-CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0}
+},
   {
-    { -128, -128, -128 },
-    {  128, -128, -128 },
-    {  128, -128,  128 },
-    { -128, -128,  128 },
-    { -128,  128, -128 },
-    {  128,  128, -128 },
-    {  128,  128,  128 },
-    { -128,  128,  128 },
-  },
-  {
-    3, 2, 0, 1,
-    0, 1, 4, 5,
-    4, 5, 7, 6,
-    1, 2, 5, 6,
-    2, 3, 6, 7,
-    3, 0, 7, 4,
-  }
+        0, 1, 2, 3, // Front face
+        1, 5, 6, 2, // Right face
+        5, 4, 7, 6, // Back face
+        4, 0, 3, 7, // Left face
+        4, 5, 1, 0, // Bottom face
+        6, 7, 3, 2  // Top face
+    }
 };
 
 struct floor floor0 = {
@@ -82,6 +89,41 @@ struct floor floor0 = {
   }
 };
 
+static void normalize_vector(SVECTOR *v) {
+    long length = SquareRoot0((v->vx * v->vx) + (v->vy * v->vy) + (v->vz * v->vz));
+    if (length != 0) {
+        v->vx = (v->vx << 12) / length;
+        v->vy = (v->vy << 12) / length;
+        v->vz = (v->vz << 12) / length;
+    }
+}
+
+void cube_calculate_normals(struct cube *c) {
+    for (size_t i = 0; i < ARRAY_SIZE(c->faces); i += 4) {
+        VECTOR v0, v1, normal;
+        v0.vx = c->vertices[c->faces[i + 1]].vx - c->vertices[c->faces[i]].vx;
+        v0.vy = c->vertices[c->faces[i + 1]].vy - c->vertices[c->faces[i]].vy;
+        v0.vz = c->vertices[c->faces[i + 1]].vz - c->vertices[c->faces[i]].vz;
+        v1.vx = c->vertices[c->faces[i + 2]].vx - c->vertices[c->faces[i]].vx;
+        v1.vy = c->vertices[c->faces[i + 2]].vy - c->vertices[c->faces[i]].vy;
+        v1.vz = c->vertices[c->faces[i + 2]].vz - c->vertices[c->faces[i]].vz;
+
+        // Calculate normal as the cross product of v0 and v1 using VECTOR
+        normal.vx = v0.vy * v1.vz - v0.vz * v1.vy;
+        normal.vy = v0.vz * v1.vx - v0.vx * v1.vz;
+        normal.vz = v0.vx * v1.vy - v0.vy * v1.vx;
+
+        // Convert back to SVECTOR if necessary, or keep as VECTOR
+        c->normals[i / 4].vx = normal.vx;
+        c->normals[i / 4].vy = normal.vy;
+        c->normals[i / 4].vz = normal.vz;
+
+        normalize_vector(&c->normals[i / 4]);
+        printf("Normal: (%d, %d, %d)\n", c->normals[i / 4].vx, c->normals[i / 4].vy, c->normals[i / 4].vz);
+    }
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Setup function that is called once at the beginning of the execution
 ///////////////////////////////////////////////////////////////////////////////
@@ -96,14 +138,16 @@ void Setup(void) {
   reset_next_prim(get_current_buffer());
 
   // Initializes the camera object
-  cam.position.vx = 300;
-  cam.position.vy = -1000;
-  cam.position.vz = -1000;
+  cam.position.vx = 0;
+  cam.position.vy = -ONE>>1;
+  cam.position.vz = -ONE>>1; // Move the camera farther away
   cam.lookat = (MATRIX){0};
+
+  cube_calculate_normals(&cube0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Setup function that is called once at the beginning of the execution
+// Update function that is called once per frame
 ///////////////////////////////////////////////////////////////////////////////
 void Update(void) {
   int i, nclip;
@@ -156,9 +200,9 @@ void Update(void) {
   /////////////////////
   // Draw the Cube
   /////////////////////
+  ScaleMatrix(&worldmat, &cube0.scale);
   RotMatrix(&cube0.rotation, &worldmat);
   TransMatrix(&worldmat, &cube0.position);
-  ScaleMatrix(&worldmat, &cube0.scale);
 
   // Create the View Matrix combining the world matrix & lookat matrix
   CompMatrixLV(&cam.lookat, &worldmat, &viewmat);
@@ -166,10 +210,12 @@ void Update(void) {
   SetRotMatrix(&viewmat);
   SetTransMatrix(&viewmat);
 
+  VECTOR transformed_normal;
+  CVECTOR color;
+  long intensity;
+
   for (i = 0; i < 24; i += 4) {
     cube_polys = (POLY_F4*) get_next_prim();
-    setPolyF4(cube_polys);
-    setRGB0(cube_polys, 255, 121, 198);
 
     nclip = RotAverageNclip4(
       &cube0.vertices[cube0.faces[i + 0]],
@@ -183,49 +229,78 @@ void Update(void) {
       &p, &otz, &flg
     );
 
-    if(nclip < 0) continue;
+    ApplyMatrix(&viewmat, &cube0.normals[i / 4], &transformed_normal);
 
-    if ((otz > 0) && (otz < OT_LEN)) {
-      addPrim(get_ot_at(get_current_buffer(), otz), cube_polys);
-      increment_next_prim(sizeof(POLY_G4));
-    }
+    if(nclip <= 0) continue;
+
+
+    // Normalize the transformed normal to avoid scaling issues
+    normalize_vector((SVECTOR*)&transformed_normal);
+
+    // Calculate dot product for lighting
+    intensity = (transformed_normal.vx * cam.position.vx +
+                 transformed_normal.vy * cam.position.vy +
+                 transformed_normal.vz * cam.position.vz) >> 12;
+
+    // Ensure intensity is positive and normalize it 
+    intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
+
+    // Apply lighting calculation 
+    long ambient = 1138; // ~40% ambient light (4096 * 0.4) 
+    long diffuse = 2458; // ~60% diffuse light (4096 * 0.6) 
+
+    // Combine ambient and diffuse lighting 
+    intensity = ambient + ((diffuse * intensity) >> 12);
+
+    // Ensure final intensity doesn't exceed 4096 (full brightness) 
+    intensity = (intensity > 4096) ? 4096 : intensity;
+
+    color.r = (255 * intensity) >> 12;
+    color.g = (121 * intensity) >> 12;
+    color.b = (198 * intensity) >> 12;
+
+    setPolyF4(cube_polys);
+    setRGB0(cube_polys, color.r, color.g, color.b);
+
+    if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
+    
+    addPrim(get_ot_at(get_current_buffer(), otz), cube_polys);
+    increment_next_prim(sizeof(POLY_F4));
   }
 
   /////////////////////
   // Draw the Floor
   /////////////////////
-  RotMatrix(&floor0.rotation, &worldmat);
-  TransMatrix(&worldmat, &floor0.position);
-  ScaleMatrix(&worldmat, &floor0.scale);
+  //RotMatrix(&floor0.rotation, &worldmat);
+  //TransMatrix(&worldmat, &floor0.position);
+  //ScaleMatrix(&worldmat, &floor0.scale);
 
-  // Create the View Matrix combining the world matrix & lookat matrix
-  CompMatrixLV(&cam.lookat, &worldmat, &viewmat);
+  //// Create the View Matrix combining the world matrix & lookat matrix
+  //CompMatrixLV(&cam.lookat, &worldmat, &viewmat);
 
-  SetRotMatrix(&viewmat);
-  SetTransMatrix(&viewmat);
+  //SetRotMatrix(&viewmat);
+  //SetTransMatrix(&viewmat);
 
-  for (i = 0; i < 6; i += 3) {
-    floor_polys = (POLY_F3*) get_next_prim();
-    setPolyF3(floor_polys);
-    setRGB0(floor_polys, 241, 250, 140);
+  //for (i = 0; i < 6; i += 3) {
+  //  floor_polys = (POLY_F3*) get_next_prim();
+  //  setPolyF3(floor_polys);
+  //  setRGB0(floor_polys, 241, 250, 140);
 
-    nclip = RotAverageNclip3(
-      &floor0.vertices[floor0.faces[i + 0]],
-      &floor0.vertices[floor0.faces[i + 1]],
-      &floor0.vertices[floor0.faces[i + 2]],
-      (long*)&floor_polys->x0,
-      (long*)&floor_polys->x1,
-      (long*)&floor_polys->x2,
-      &p, &otz, &flg
-    );
+  //  nclip = RotAverageNclip3(
+  //    &floor0.vertices[floor0.faces[i + 0]],
+  //    &floor0.vertices[floor0.faces[i + 1]],
+  //    &floor0.vertices[floor0.faces[i + 2]],
+  //    (long*)&floor_polys->x0,
+  //    (long*)&floor_polys->x1,
+  //    (long*)&floor_polys->x2,
+  //    &p, &otz, &flg
+  //  );
 
-    if (nclip < 0) continue;
+  //  if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
 
-    if ((otz > 0) && (otz < OT_LEN)) {
-      addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
-      increment_next_prim(sizeof(POLY_F3));
-    }
-  }
+  //  addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
+  //  increment_next_prim(sizeof(POLY_F3));
+  //}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -239,6 +314,7 @@ void Render(void) {
 // Main function
 ///////////////////////////////////////////////////////////////////////////////
 int main(void) {
+
   Setup();
   while (1) {
     Update();
