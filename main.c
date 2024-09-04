@@ -24,8 +24,8 @@ struct cube {
   VECTOR vel;
   VECTOR acc;
   SVECTOR vertices[8];
-  short faces[24];
-  SVECTOR normals[6];
+  short faces[36];
+  SVECTOR normals[12];
 };
 
 struct floor {
@@ -39,7 +39,7 @@ struct floor {
 ///////////////////////////////////////////////////////////////////////////////
 // Declarations and global variables
 ///////////////////////////////////////////////////////////////////////////////
-POLY_F4 *cube_polys;
+POLY_F3 *cube_polys;
 POLY_F3 *floor_polys;
 
 MATRIX worldmat = {0};
@@ -53,24 +53,30 @@ struct cube cube0 = {
   {ONE, ONE, ONE},
   {0, 0, 0},
   {0, 1, 0},
-{
-  {-CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},
-  {CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},
-  {CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},
-  {-CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},
-  {-CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},
-  {CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},
-  {CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0},
-  {-CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0}
-},
   {
-        0, 1, 2, 3, // Front face
-        1, 5, 6, 2, // Right face
-        5, 4, 7, 6, // Back face
-        4, 0, 3, 7, // Left face
-        4, 5, 1, 0, // Bottom face
-        6, 7, 3, 2  // Top face
-    }
+    {-CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0}, // Vertex 0
+    {CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},  // Vertex 1
+    {CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},   // Vertex 2
+    {-CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},  // Vertex 3
+    {-CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},  // Vertex 4
+    {CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},   // Vertex 5
+    {CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0},    // Vertex 6
+    {-CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0}    // Vertex 7
+  },
+  {
+    0, 1, 2,  // Front face triangle 1
+    0, 2, 3,  // Front face triangle 2
+    1, 5, 6,  // Right face triangle 1
+    1, 6, 2,  // Right face triangle 2
+    5, 4, 7,  // Back face triangle 1
+    5, 7, 6,  // Back face triangle 2
+    4, 0, 3,  // Left face triangle 1
+    4, 3, 7,  // Left face triangle 2
+    4, 5, 1,  // Bottom face triangle 1
+    4, 1, 0,  // Bottom face triangle 2
+    3, 2, 6,  // Top face triangle 1
+    3, 6, 7   // Top face triangle 2
+  }
 };
 
 struct floor floor0 = {
@@ -99,27 +105,32 @@ static void normalize_vector(SVECTOR *v) {
 }
 
 void cube_calculate_normals(struct cube *c) {
-    for (size_t i = 0; i < ARRAY_SIZE(c->faces); i += 4) {
+    for (size_t i = 0; i < ARRAY_SIZE(c->faces); i += 3) {  // Increment by 3 for each triangle
         VECTOR v0, v1, normal;
+
+        // Calculate two vectors from the three vertices of the triangle
         v0.vx = c->vertices[c->faces[i + 1]].vx - c->vertices[c->faces[i]].vx;
         v0.vy = c->vertices[c->faces[i + 1]].vy - c->vertices[c->faces[i]].vy;
         v0.vz = c->vertices[c->faces[i + 1]].vz - c->vertices[c->faces[i]].vz;
+        
         v1.vx = c->vertices[c->faces[i + 2]].vx - c->vertices[c->faces[i]].vx;
         v1.vy = c->vertices[c->faces[i + 2]].vy - c->vertices[c->faces[i]].vy;
         v1.vz = c->vertices[c->faces[i + 2]].vz - c->vertices[c->faces[i]].vz;
 
-        // Calculate normal as the cross product of v0 and v1 using VECTOR
+        // Calculate normal as the cross product of v0 and v1
         normal.vx = v0.vy * v1.vz - v0.vz * v1.vy;
         normal.vy = v0.vz * v1.vx - v0.vx * v1.vz;
         normal.vz = v0.vx * v1.vy - v0.vy * v1.vx;
 
-        // Convert back to SVECTOR if necessary, or keep as VECTOR
-        c->normals[i / 4].vx = normal.vx;
-        c->normals[i / 4].vy = normal.vy;
-        c->normals[i / 4].vz = normal.vz;
+        // Normalize the normal vector
+        normalize_vector((SVECTOR*)&normal);
 
-        normalize_vector(&c->normals[i / 4]);
-        printf("Normal: (%d, %d, %d)\n", c->normals[i / 4].vx, c->normals[i / 4].vy, c->normals[i / 4].vz);
+        // Store the normal in the appropriate place
+        c->normals[i / 3].vx = normal.vx;
+        c->normals[i / 3].vy = normal.vy;
+        c->normals[i / 3].vz = normal.vz;
+
+        printf("Normal for triangle %d: (%d, %d, %d)\n", i / 3, normal.vx, normal.vy, normal.vz);
     }
 }
 
@@ -214,18 +225,16 @@ void Update(void) {
   CVECTOR color;
   long intensity;
 
-  for (i = 0; i < 24; i += 4) {
-    cube_polys = (POLY_F4*) get_next_prim();
+  for (i = 0; i < 36; i += 3) {
+    cube_polys = (POLY_F3*) get_next_prim();
 
-    nclip = RotAverageNclip4(
+    nclip = RotAverageNclip3(
       &cube0.vertices[cube0.faces[i + 0]],
       &cube0.vertices[cube0.faces[i + 1]],
       &cube0.vertices[cube0.faces[i + 2]],
-      &cube0.vertices[cube0.faces[i + 3]],
       (long*)&cube_polys->x0,
       (long*)&cube_polys->x1,
       (long*)&cube_polys->x2,
-      (long*)&cube_polys->x3,
       &p, &otz, &flg
     );
 
@@ -259,7 +268,7 @@ void Update(void) {
     color.g = (121 * intensity) >> 12;
     color.b = (198 * intensity) >> 12;
 
-    setPolyF4(cube_polys);
+    setPolyF3(cube_polys);
     setRGB0(cube_polys, color.r, color.g, color.b);
 
     if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
@@ -271,36 +280,36 @@ void Update(void) {
   /////////////////////
   // Draw the Floor
   /////////////////////
-  //RotMatrix(&floor0.rotation, &worldmat);
-  //TransMatrix(&worldmat, &floor0.position);
-  //ScaleMatrix(&worldmat, &floor0.scale);
+  RotMatrix(&floor0.rotation, &worldmat);
+  TransMatrix(&worldmat, &floor0.position);
+  ScaleMatrix(&worldmat, &floor0.scale);
 
-  //// Create the View Matrix combining the world matrix & lookat matrix
-  //CompMatrixLV(&cam.lookat, &worldmat, &viewmat);
+  // Create the View Matrix combining the world matrix & lookat matrix
+  CompMatrixLV(&cam.lookat, &worldmat, &viewmat);
 
-  //SetRotMatrix(&viewmat);
-  //SetTransMatrix(&viewmat);
+  SetRotMatrix(&viewmat);
+  SetTransMatrix(&viewmat);
 
-  //for (i = 0; i < 6; i += 3) {
-  //  floor_polys = (POLY_F3*) get_next_prim();
-  //  setPolyF3(floor_polys);
-  //  setRGB0(floor_polys, 241, 250, 140);
+  for (i = 0; i < 6; i += 3) {
+    floor_polys = (POLY_F3*) get_next_prim();
+    setPolyF3(floor_polys);
+    setRGB0(floor_polys, 241, 250, 140);
 
-  //  nclip = RotAverageNclip3(
-  //    &floor0.vertices[floor0.faces[i + 0]],
-  //    &floor0.vertices[floor0.faces[i + 1]],
-  //    &floor0.vertices[floor0.faces[i + 2]],
-  //    (long*)&floor_polys->x0,
-  //    (long*)&floor_polys->x1,
-  //    (long*)&floor_polys->x2,
-  //    &p, &otz, &flg
-  //  );
+    nclip = RotAverageNclip3(
+      &floor0.vertices[floor0.faces[i + 0]],
+      &floor0.vertices[floor0.faces[i + 1]],
+      &floor0.vertices[floor0.faces[i + 2]],
+      (long*)&floor_polys->x0,
+      (long*)&floor_polys->x1,
+      (long*)&floor_polys->x2,
+      &p, &otz, &flg
+    );
 
-  //  if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
+    if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
 
-  //  addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
-  //  increment_next_prim(sizeof(POLY_F3));
-  //}
+    addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
+    increment_next_prim(sizeof(POLY_F3));
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
