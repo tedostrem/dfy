@@ -34,6 +34,7 @@ struct floor {
   VECTOR scale;
   SVECTOR vertices[4];
   short faces[6];
+  SVECTOR normals[12];
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -123,8 +124,38 @@ void cube_calculate_normals(struct cube *c) {
         normal.vz = v0.vx * v1.vy - v0.vy * v1.vx;
 
         // Normalize the normal vector
-        normalize_vector((SVECTOR*)&normal);
+        //normalize_vector((SVECTOR*)&normal);
+        VectorNormal(&normal, &normal);
+        // Store the normal in the appropriate place
+        c->normals[i / 3].vx = normal.vx;
+        c->normals[i / 3].vy = normal.vy;
+        c->normals[i / 3].vz = normal.vz;
 
+        printf("Normal for triangle %d: (%d, %d, %d)\n", i / 3, normal.vx, normal.vy, normal.vz);
+    }
+}
+
+void floor_calculate_normals(struct floor *c) {
+    for (size_t i = 0; i < ARRAY_SIZE(c->faces); i += 3) {  // Increment by 3 for each triangle
+        VECTOR v0, v1, normal;
+
+        // Calculate two vectors from the three vertices of the triangle
+        v0.vx = c->vertices[c->faces[i + 1]].vx - c->vertices[c->faces[i]].vx;
+        v0.vy = c->vertices[c->faces[i + 1]].vy - c->vertices[c->faces[i]].vy;
+        v0.vz = c->vertices[c->faces[i + 1]].vz - c->vertices[c->faces[i]].vz;
+        
+        v1.vx = c->vertices[c->faces[i + 2]].vx - c->vertices[c->faces[i]].vx;
+        v1.vy = c->vertices[c->faces[i + 2]].vy - c->vertices[c->faces[i]].vy;
+        v1.vz = c->vertices[c->faces[i + 2]].vz - c->vertices[c->faces[i]].vz;
+
+        // Calculate normal as the cross product of v0 and v1
+        normal.vx = v0.vy * v1.vz - v0.vz * v1.vy;
+        normal.vy = v0.vz * v1.vx - v0.vx * v1.vz;
+        normal.vz = v0.vx * v1.vy - v0.vy * v1.vx;
+
+        // Normalize the normal vector
+        //normalize_vector((SVECTOR*)&normal);
+        VectorNormal(&normal, &normal);
         // Store the normal in the appropriate place
         c->normals[i / 3].vx = normal.vx;
         c->normals[i / 3].vy = normal.vy;
@@ -150,11 +181,12 @@ void Setup(void) {
 
   // Initializes the camera object
   cam.position.vx = 0;
-  cam.position.vy = -ONE>>1;
-  cam.position.vz = -ONE>>1; // Move the camera farther away
+  cam.position.vy = -300;
+  cam.position.vz = -500; // Move the camera farther away
   cam.lookat = (MATRIX){0};
 
   cube_calculate_normals(&cube0);
+  floor_calculate_normals(&floor0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -238,18 +270,15 @@ void Update(void) {
       &p, &otz, &flg
     );
 
-    ApplyMatrix(&viewmat, &cube0.normals[i / 4], &transformed_normal);
-
-    if(nclip <= 0) continue;
-
+    ApplyMatrix(&viewmat, &cube0.normals[i / 3], &transformed_normal);
 
     // Normalize the transformed normal to avoid scaling issues
     normalize_vector((SVECTOR*)&transformed_normal);
 
     // Calculate dot product for lighting
-    intensity = (transformed_normal.vx * cam.position.vx +
-                 transformed_normal.vy * cam.position.vy +
-                 transformed_normal.vz * cam.position.vz) >> 12;
+    intensity = (transformed_normal.vx * light_vector.vx +
+                 transformed_normal.vy * light_vector.vy +
+                 transformed_normal.vz * light_vector.vz) >> 12;
 
     // Ensure intensity is positive and normalize it 
     intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
@@ -292,8 +321,7 @@ void Update(void) {
 
   for (i = 0; i < 6; i += 3) {
     floor_polys = (POLY_F3*) get_next_prim();
-    setPolyF3(floor_polys);
-    setRGB0(floor_polys, 241, 250, 140);
+
 
     nclip = RotAverageNclip3(
       &floor0.vertices[floor0.faces[i + 0]],
@@ -304,6 +332,37 @@ void Update(void) {
       (long*)&floor_polys->x2,
       &p, &otz, &flg
     );
+
+    ApplyMatrix(&viewmat, &floor0.normals[i / 3], &transformed_normal);
+
+    // Normalize the transformed normal to avoid scaling issues
+    normalize_vector((SVECTOR*)&transformed_normal);
+
+    // Calculate dot product for lighting
+    intensity = (transformed_normal.vx * light_vector.vx +
+                 transformed_normal.vy * light_vector.vy +
+                 transformed_normal.vz * light_vector.vz) >> 12;
+    printf("Intensity: %d\n", intensity);
+    intensity *= -1;
+    // Ensure intensity is positive and normalize it 
+    intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
+
+    // Apply lighting calculation 
+    long ambient = 4096*0.6; // ~40% ambient light (4096 * 0.4) 
+    long diffuse = 4096*0.4; // ~60% diffuse light (4096 * 0.6) 
+
+    // Combine ambient and diffuse lighting 
+    intensity = ambient + ((diffuse * intensity) >> 12);
+
+    // Ensure final intensity doesn't exceed 4096 (full brightness) 
+    intensity = (intensity > 4096) ? 4096 : intensity;
+
+    color.r = (241 * intensity) >> 12;
+    color.g = (250 * intensity) >> 12;
+    color.b = (140 * intensity) >> 12;
+
+    setPolyF3(floor_polys);
+    setRGB0(floor_polys, color.r, color.g, color.b);
 
     if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
 

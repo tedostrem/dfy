@@ -30,8 +30,8 @@ void screen_init(void) {
   screen.draw[1].isbg = 1;
 
   // Set the background clear color
-  setRGB0(&screen.draw[0], 40, 42, 54); // dark purple
-  setRGB0(&screen.draw[1], 40, 42, 54); // dark purple
+  setRGB0(&screen.draw[0], 60, 62, 74); // dark purple
+  setRGB0(&screen.draw[1], 60, 62, 74); // dark purple
 
   // Set the current initial buffer
   currbuff = 0;
