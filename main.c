@@ -172,7 +172,7 @@ void calculate_normals(struct mesh *m) {
 ///////////////////////////////////////////////////////////////////////////////
 // Render a mesh function
 ///////////////////////////////////////////////////////////////////////////////
-void render_mesh(struct object *obj, MATRIX *viewmat) {
+void render_object(struct object *obj, MATRIX *viewmat) {
     VECTOR transformed_normal;
     CVECTOR color;
     long intensity;
@@ -318,7 +318,7 @@ void Update(void) {
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    render_mesh(&cube0, &viewmat);
+    render_object(&cube0, &viewmat);
 
     /////////////////////
     // Draw the Floor
@@ -333,7 +333,7 @@ void Update(void) {
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    render_mesh(&floor0, &viewmat);
+    render_object(&floor0, &viewmat);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
