@@ -165,7 +165,70 @@ void calculate_normals(struct mesh *m) {
         m->normals[i / 3].vy = normal.vy;
         m->normals[i / 3].vz = normal.vz;
 
-        printf("Normal for triangle %d: (%d, %d, %d)\n", i / 3, normal.vx, normal.vy, normal.vz);
+        printf("Normal for triangle %d: (%ld, %ld, %ld)\n", i / 3, normal.vx, normal.vy, normal.vz);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Render a mesh function
+///////////////////////////////////////////////////////////////////////////////
+void render_mesh(struct object *obj, MATRIX *viewmat) {
+    VECTOR transformed_normal;
+    CVECTOR color;
+    long intensity;
+    POLY_F3 *polys;
+    long p, otz, flag;
+
+    for (size_t i = 0; i < obj->mesh->face_count; i += 3) {
+        polys = (POLY_F3*) get_next_prim();
+
+        int nclip = RotAverageNclip3(
+            &obj->mesh->vertices[obj->mesh->faces[i + 0]],
+            &obj->mesh->vertices[obj->mesh->faces[i + 1]],
+            &obj->mesh->vertices[obj->mesh->faces[i + 2]],
+            (long*)&polys->x0,
+            (long*)&polys->x1,
+            (long*)&polys->x2,
+            &p, &otz, &flag
+        );
+
+        if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) {
+            continue; // Skip the primitive if it's clipped or out of range
+        }
+
+        ApplyMatrix(viewmat, &obj->mesh->normals[i / 3], &transformed_normal);
+
+        // Normalize the transformed normal to avoid scaling issues
+        normalize_vector((SVECTOR*)&transformed_normal);
+
+        // Calculate dot product for lighting
+        intensity = (transformed_normal.vx * light_vector.vx +
+                     transformed_normal.vy * light_vector.vy +
+                     transformed_normal.vz * light_vector.vz) >> 12;
+
+        // Ensure intensity is positive and normalize it 
+        intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
+
+        // Apply lighting calculation 
+        long ambient = 1138; // ~40% ambient light (4096 * 0.4) 
+        long diffuse = 2458; // ~60% diffuse light (4096 * 0.6) 
+
+        // Combine ambient and diffuse lighting 
+        intensity = ambient + ((diffuse * intensity) >> 12);
+
+        // Ensure final intensity doesn't exceed 4096 (full brightness) 
+        intensity = (intensity > 4096) ? 4096 : intensity;
+
+        color.r = (255 * intensity) >> 12;
+        color.g = (121 * intensity) >> 12;
+        color.b = (198 * intensity) >> 12;
+
+        setPolyF3(polys);
+        setRGB0(polys, color.r, color.g, color.b);
+
+        // Add the polygon to the ordering table
+        addPrim(get_ot_at(get_current_buffer(), otz), polys);
+        increment_next_prim(sizeof(POLY_F3));
     }
 }
 
@@ -197,8 +260,6 @@ void Setup(void) {
 // Update function that is called once per frame
 ///////////////////////////////////////////////////////////////////////////////
 void Update(void) {
-    int i, nclip;
-    long otz, p, flg;
     u_long pad;
 
     // Empty the Ordering Table
@@ -257,58 +318,7 @@ void Update(void) {
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    VECTOR transformed_normal;
-    CVECTOR color;
-    long intensity;
-
-    for (i = 0; i < cube0.mesh->face_count; i += 3) {
-        cube_polys = (POLY_F3*) get_next_prim();
-
-        nclip = RotAverageNclip3(
-            &cube0.mesh->vertices[cube0.mesh->faces[i + 0]],
-            &cube0.mesh->vertices[cube0.mesh->faces[i + 1]],
-            &cube0.mesh->vertices[cube0.mesh->faces[i + 2]],
-            (long*)&cube_polys->x0,
-            (long*)&cube_polys->x1,
-            (long*)&cube_polys->x2,
-            &p, &otz, &flg
-        );
-
-        ApplyMatrix(&viewmat, &cube0.mesh->normals[i / 3], &transformed_normal);
-
-        // Normalize the transformed normal to avoid scaling issues
-        normalize_vector((SVECTOR*)&transformed_normal);
-
-        // Calculate dot product for lighting
-        intensity = (transformed_normal.vx * light_vector.vx +
-                     transformed_normal.vy * light_vector.vy +
-                     transformed_normal.vz * light_vector.vz) >> 12;
-
-        // Ensure intensity is positive and normalize it 
-        intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
-
-        // Apply lighting calculation 
-        long ambient = 1138; // ~40% ambient light (4096 * 0.4) 
-        long diffuse = 2458; // ~60% diffuse light (4096 * 0.6) 
-
-        // Combine ambient and diffuse lighting 
-        intensity = ambient + ((diffuse * intensity) >> 12);
-
-        // Ensure final intensity doesn't exceed 4096 (full brightness) 
-        intensity = (intensity > 4096) ? 4096 : intensity;
-
-        color.r = (255 * intensity) >> 12;
-        color.g = (121 * intensity) >> 12;
-        color.b = (198 * intensity) >> 12;
-
-        setPolyF3(cube_polys);
-        setRGB0(cube_polys, color.r, color.g, color.b);
-
-        if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
-        
-        addPrim(get_ot_at(get_current_buffer(), otz), cube_polys);
-        increment_next_prim(sizeof(POLY_F4));
-    }
+    render_mesh(&cube0, &viewmat);
 
     /////////////////////
     // Draw the Floor
@@ -323,54 +333,7 @@ void Update(void) {
     SetRotMatrix(&viewmat);
     SetTransMatrix(&viewmat);
 
-    for (i = 0; i < floor0.mesh->face_count; i += 3) {
-        floor_polys = (POLY_F3*) get_next_prim();
-
-        nclip = RotAverageNclip3(
-            &floor0.mesh->vertices[floor0.mesh->faces[i + 0]],
-            &floor0.mesh->vertices[floor0.mesh->faces[i + 1]],
-            &floor0.mesh->vertices[floor0.mesh->faces[i + 2]],
-            (long*)&floor_polys->x0,
-            (long*)&floor_polys->x1,
-            (long*)&floor_polys->x2,
-            &p, &otz, &flg
-        );
-
-        ApplyMatrix(&viewmat, &floor0.mesh->normals[i / 3], &transformed_normal);
-
-        // Normalize the transformed normal to avoid scaling issues
-        normalize_vector((SVECTOR*)&transformed_normal);
-
-        // Calculate dot product for lighting
-        intensity = (transformed_normal.vx * light_vector.vx +
-                     transformed_normal.vy * light_vector.vy +
-                     transformed_normal.vz * light_vector.vz) >> 12;
-
-        // Ensure intensity is positive and normalize it 
-        intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
-
-        // Apply lighting calculation 
-        long ambient = 1138; // ~40% ambient light 
-        long diffuse = 2458; // ~60% diffuse light 
-
-        // Combine ambient and diffuse lighting 
-        intensity = ambient + ((diffuse * intensity) >> 12);
-
-        // Ensure final intensity doesn't exceed 4096 (full brightness) 
-        intensity = (intensity > 4096) ? 4096 : intensity;
-
-        color.r = (241 * intensity) >> 12;
-        color.g = (250 * intensity) >> 12;
-        color.b = (140 * intensity) >> 12;
-
-        setPolyF3(floor_polys);
-        setRGB0(floor_polys, color.r, color.g, color.b);
-
-        if (nclip <= 0 || otz <= 0 || otz >= OT_LEN) continue;
-
-        addPrim(get_ot_at(get_current_buffer(), otz), floor_polys);
-        increment_next_prim(sizeof(POLY_F3));
-    }
+    render_mesh(&floor0, &viewmat);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -384,7 +347,6 @@ void Render(void) {
 // Main function
 ///////////////////////////////////////////////////////////////////////////////
 int main(void) {
-
     Setup();
     while (1) {
         Update();
