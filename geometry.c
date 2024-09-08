@@ -27,18 +27,45 @@ short cube_faces[] = {
 SVECTOR cube_normals[12]; // Normals for the cube faces
 
 SVECTOR floor_vertices[] = {
-    {-900, 0, -900},
-    {-900, 0,  900},
-    { 900, 0, -900},
-    { 900, 0,  900},
+    {-900, 0, -900}, {-300, 0, -900}, {300, 0, -900}, {900, 0, -900},  // First row
+    {-900, 0, -300}, {-300, 0, -300}, {300, 0, -300}, {900, 0, -300},  // Second row
+    {-900, 0,  300}, {-300, 0,  300}, {300, 0,  300}, {900, 0,  300},  // Third row
+    {-900, 0,  900}, {-300, 0,  900}, {300, 0,  900}, {900, 0,  900},  // Fourth row
 };
 
 short floor_faces[] = {
-    0, 1, 2,
-    1, 3, 2,
+    // First quad
+    0, 4, 1,
+    1, 4, 5,
+    // Second quad
+    1, 5, 2,
+    2, 5, 6,
+    // Third quad
+    2, 6, 3,
+    3, 6, 7,
+    // Fourth quad
+    4, 8, 5,
+    5, 8, 9,
+    // Fifth quad
+    5, 9, 6,
+    6, 9, 10,
+    // Sixth quad
+    6, 10, 7,
+    7, 10, 11,
+    // Seventh quad
+    8, 12, 9,
+    9, 12, 13,
+    // Eighth quad
+    9, 13, 10,
+    10, 13, 14,
+    // Ninth quad
+    10, 14, 11,
+    11, 14, 15,
 };
 
-SVECTOR floor_normals[2]; // Normals for the floor faces
+SVECTOR floor_normals[16];  // For 16 triangles
+
+
 
 struct mesh cube_mesh = {
     cube_vertices,
