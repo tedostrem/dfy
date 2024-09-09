@@ -19,7 +19,7 @@ typedef enum {
 } draw_mode;
 
 VECTOR light_vector = {4096, -2000, -4096}; // Light coming from the camera direction
-
+VECTOR light_position = {0, 2000, 0};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Declarations and global variables
@@ -73,10 +73,12 @@ void calculate_normals(struct mesh *m) {
 ///////////////////////////////////////////////////////////////////////////////
 // Render a mesh function
 ///////////////////////////////////////////////////////////////////////////////
-void render_object(struct object *obj, MATRIX *worldmat, MATRIX *viewmat, draw_mode mode) {
+void render_object(struct object *obj, MATRIX *worldmat, draw_mode mode) {
+    long distance, intensity, attenuation;
+    VECTOR face_center;
+    VECTOR light_direction;
     SVECTOR transformed_normal;
     CVECTOR color;
-    long intensity;
     POLY_F3 *polys;
     LINE_G3 *lines;
     long p, otz, flag;
@@ -98,13 +100,42 @@ void render_object(struct object *obj, MATRIX *worldmat, MATRIX *viewmat, draw_m
             continue; // Skip if clipped or out of range
         }
 
-        //ApplyMatrix(worldmat, &obj->mesh->normals[i / 3], &transformed_normal);
-        //VectorNormal(obj->mesh->normals[i / 3], &transformed_normal);
-        VectorNormalSS(&obj->mesh->normals[i / 3], &transformed_normal);
-        intensity = (transformed_normal.vx * light_vector.vx +
-                     transformed_normal.vy * light_vector.vy +
-                     transformed_normal.vz * light_vector.vz) >> 12;
-        
+        face_center.vx = (obj->mesh->vertices[obj->mesh->faces[i + 0]].vx +
+                  obj->mesh->vertices[obj->mesh->faces[i + 1]].vx +
+                  obj->mesh->vertices[obj->mesh->faces[i + 2]].vx) / 3;
+        face_center.vy = (obj->mesh->vertices[obj->mesh->faces[i + 0]].vy +
+                  obj->mesh->vertices[obj->mesh->faces[i + 1]].vy +
+                  obj->mesh->vertices[obj->mesh->faces[i + 2]].vy) / 3;
+        face_center.vz = (obj->mesh->vertices[obj->mesh->faces[i + 0]].vz +
+                  obj->mesh->vertices[obj->mesh->faces[i + 1]].vz +
+                  obj->mesh->vertices[obj->mesh->faces[i + 2]].vz) / 3;
+
+        light_direction.vx = light_position.vx - face_center.vx;
+        light_direction.vy = light_position.vy - face_center.vy;
+        light_direction.vz = light_position.vz - face_center.vz;
+
+        // Calculate the distance (magnitude of the light direction vector)
+        distance = SquareRoot0(light_direction.vx * light_direction.vx +
+                               light_direction.vy * light_direction.vy +
+                               light_direction.vz * light_direction.vz);    
+
+        // Apply attenuation (inverse-square law or linear scaling)
+        attenuation = (4096 * 4096) / ((distance + 1) * (distance + 1));  // Inverse square scaling
+        attenuation *= 600;
+
+        // Transform the normal vector using only the object's world matrix
+        ApplyMatrixLV(worldmat, &obj->mesh->normals[i / 3], &transformed_normal);
+
+        // Normalize the light direction
+        VectorNormal(&light_direction, &light_direction);
+
+        // Intensity calculation based on the transformed normal and light direction
+        intensity = (transformed_normal.vx * light_direction.vx +
+                     transformed_normal.vy * light_direction.vy +
+                     transformed_normal.vz * light_direction.vz) >> 12;
+
+        // Apply attenuation to the intensity based on the distance
+        intensity = (intensity * attenuation) >> 12;
         intensity = (intensity < 0) ? 0 : (intensity > 4096) ? 4096 : intensity;
 
         long ambient = 1138;
@@ -123,7 +154,6 @@ void render_object(struct object *obj, MATRIX *worldmat, MATRIX *viewmat, draw_m
         increment_next_prim(sizeof(POLY_F3));
     }
 }
-
 ///////////////////////////////////////////////////////////////////////////////
 // Setup function that is called once at the beginning of the execution
 ///////////////////////////////////////////////////////////////////////////////
@@ -164,6 +194,7 @@ void Update(void) {
     // Update the state of the controller
     joypad_update();
 
+    // Camera movement based on joypad input
     if (joypad_check(PAD1_LEFT)) {
         cam.position.vx -= 50;
     }
@@ -183,6 +214,7 @@ void Update(void) {
         cam.position.vz -= 50;
     }
 
+    // Update the positions of cube and floor
     cube0->position.vx = 0;
     cube0->position.vy = -100;
     cube0->position.vz = 0;
@@ -191,30 +223,32 @@ void Update(void) {
     floor0->position.vy = 0;
     floor0->position.vz = 0;
 
-    // cube matrices
+    // Calculate the transformation matrices for the cube
     ScaleMatrix(&cubemat, &cube0->scale);
     RotMatrix(&cube0->rotation, &cubemat);
     TransMatrix(&cubemat, &cube0->position);
 
-    // floor matrices
-    ScaleMatrix(&floormat, &cube0->scale);
+    // Calculate the transformation matrices for the floor
+    ScaleMatrix(&floormat, &floor0->scale);
     RotMatrix(&floor0->rotation, &floormat);
     TransMatrix(&floormat, &floor0->position);
 
-    // Create view matrix from camera
+    // Create the view matrix from the camera
     camera_look_at(&cam, &cam.position, &cube0->position, &(VECTOR){0, -ONE, 0});
 
+    // Combine camera matrix with the object matrices
     CompMatrixLV(&cam.lookat, &cubemat, &cubemat_final);
     CompMatrixLV(&cam.lookat, &floormat, &floormat_final);
 
+    // Render the cube with its transformed matrix
     SetRotMatrix(&cubemat_final);
     SetTransMatrix(&cubemat_final);
-    render_object(cube0, &cubemat_final, &viewmat, DRAW_MODE_FLAT);
+    render_object(cube0, &cubemat_final, DRAW_MODE_FLAT);
 
+    // Render the floor with its transformed matrix
     SetRotMatrix(&floormat_final);
     SetTransMatrix(&floormat_final);
-    render_object(floor0, &floormat_final, &viewmat, DRAW_MODE_FLAT);
-
+    render_object(floor0, &floormat_final, DRAW_MODE_FLAT);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
