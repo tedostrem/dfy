@@ -8,6 +8,8 @@ display.c \
 joypad.c \
 camera.c \
 geometry.c \
+debug.c \
+math.c \
 main.c
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include

@@ -1,4 +1,5 @@
 #include "camera.h"
+#include "debug.h"
 
 void vector_cross(VECTOR *a, VECTOR *b, VECTOR *out) {
   OuterProduct12(a, b, out);
@@ -16,6 +17,7 @@ void camera_look_at(struct camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up)
   zforward.vy = target->vy - eye->vy;
   zforward.vz = target->vz - eye->vz;
   VectorNormal(&zforward, &z);
+  debug_vector(&z);
 
   vector_cross(&z, up, &xright);
   VectorNormal(&xright, &x);
@@ -33,4 +35,5 @@ void camera_look_at(struct camera *cam, VECTOR *eye, VECTOR *target, VECTOR *up)
 
   ApplyMatrixLV(&cam->lookat, &pos, &t);
   TransMatrix(&cam->lookat, &t);
+
 }

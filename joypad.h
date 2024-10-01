@@ -2,6 +2,7 @@
 #define JOYPAD_H
 
 #include <libetc.h>
+#include <libgte.h>
 
 #define PAD1_SELECT    _PAD(0, PADselect)
 #define PAD1_START     _PAD(0, PADstart)
@@ -36,7 +37,7 @@
 void joypad_init(void);
 void joypad_reset(void);
 void joypad_update(void);
-
 int joypad_check(int p);
+void joypad_update_camera_position(VECTOR *campos);
 
 #endif

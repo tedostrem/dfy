@@ -9,7 +9,7 @@
 struct mesh {
     SVECTOR *vertices;
     short *faces;
-    SVECTOR *normals;
+    VECTOR *normals;
     size_t vertex_count;
     size_t face_count;
     size_t normal_count;

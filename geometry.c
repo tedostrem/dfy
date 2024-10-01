@@ -1,80 +1,76 @@
-#include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 #include "geometry.h"
 
-#define CUBESIZE 196
-
-SVECTOR cube_vertices[] = {
-    {-CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0}, // Vertex 0
-    {CUBESIZE / 2, -CUBESIZE / 2, -CUBESIZE / 2, 0},  // Vertex 1
-    {CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},   // Vertex 2
-    {-CUBESIZE / 2, CUBESIZE / 2, -CUBESIZE / 2, 0},  // Vertex 3
-    {-CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},  // Vertex 4
-    {CUBESIZE / 2, -CUBESIZE / 2, CUBESIZE / 2, 0},   // Vertex 5
-    {CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0},    // Vertex 6
-    {-CUBESIZE / 2, CUBESIZE / 2, CUBESIZE / 2, 0}    // Vertex 7
-};
-
-short cube_faces[] = {
-    0, 1, 2,  0, 2, 3,  // Front face
-    1, 5, 6,  1, 6, 2,  // Right face
-    5, 4, 7,  5, 7, 6,  // Back face
-    4, 0, 3,  4, 3, 7,  // Left face
-    4, 5, 1,  4, 1, 0,  // Bottom face
-    3, 2, 6,  3, 6, 7   // Top face
-};
-
-SVECTOR cube_normals[12]; // Normals for the cube faces
-
 SVECTOR floor_vertices[] = {
-    {-900, 0, -900}, {-300, 0, -900}, {300, 0, -900}, {900, 0, -900},  // First row
-    {-900, 0, -300}, {-300, 0, -300}, {300, 0, -300}, {900, 0, -300},  // Second row
-    {-900, 0,  300}, {-300, 0,  300}, {300, 0,  300}, {900, 0,  300},  // Third row
-    {-900, 0,  900}, {-300, 0,  900}, {300, 0,  900}, {900, 0,  900},  // Fourth row
+    // First row (negative Z)
+    {-900, 0, -900},  // 0  - Left quad (third)
+    {-900, 0, -300},  // 1  - Left quad (third)
+    {-300, 0, -900},  // 2  - Middle quad (first)
+    {-300, 0, -300},  // 3  - Middle quad (first)
+
+    {-300, 0, -900},  // 4  - Middle quad (first)
+    {-300, 0, -300},  // 5  - Middle quad (first)
+    { 300, 0, -900},  // 6  - Right quad (second)
+    { 300, 0, -300},  // 7  - Right quad (second)
+
+    { 300, 0, -900},  // 8  - Right quad (second)
+    { 300, 0, -300},  // 9  - Right quad (second)
+    { 900, 0, -900},  // 10 - Right quad (second)
+    { 900, 0, -300},  // 11 - Right quad (second)
+
+    // Second row (Z = 0)
+    {-900, 0, -300},  // 12 - Left quad (third)
+    {-900, 0,  300},  // 13 - Left quad (third)
+    {-300, 0, -300},  // 14 - Middle quad (first)
+    {-300, 0,  300},  // 15 - Middle quad (first)
+
+    {-300, 0, -300},  // 16 - Middle quad (first)
+    {-300, 0,  300},  // 17 - Middle quad (first)
+    { 300, 0, -300},  // 18 - Right quad (second)
+    { 300, 0,  300},  // 19 - Right quad (second)
+
+    { 300, 0, -300},  // 20 - Right quad (second)
+    { 300, 0,  300},  // 21 - Right quad (second)
+    { 900, 0, -300},  // 22 - Right quad (second)
+    { 900, 0,  300},  // 23 - Right quad (second)
+
+    // Third row (positive Z)
+    {-900, 0,  300},  // 24 - Left quad (third)
+    {-900, 0,  900},  // 25 - Left quad (third)
+    {-300, 0,  300},  // 26 - Middle quad (first)
+    {-300, 0,  900},  // 27 - Middle quad (first)
+
+    {-300, 0,  300},  // 28 - Middle quad (first)
+    {-300, 0,  900},  // 29 - Middle quad (first)
+    { 300, 0,  300},  // 30 - Right quad (second)
+    { 300, 0,  900},  // 31 - Right quad (second)
+
+    { 300, 0,  300},  // 32 - Right quad (second)
+    { 300, 0,  900},  // 33 - Right quad (second)
+    { 900, 0,  300},  // 34 - Right quad (second)
+    { 900, 0,  900}   // 35 - Right quad (second)
 };
 
 short floor_faces[] = {
-    // First quad
-    0, 4, 1,
-    1, 4, 5,
-    // Second quad
-    1, 5, 2,
-    2, 5, 6,
-    // Third quad
-    2, 6, 3,
-    3, 6, 7,
-    // Fourth quad
-    4, 8, 5,
-    5, 8, 9,
-    // Fifth quad
-    5, 9, 6,
-    6, 9, 10,
-    // Sixth quad
-    6, 10, 7,
-    7, 10, 11,
-    // Seventh quad
-    8, 12, 9,
-    9, 12, 13,
-    // Eighth quad
-    9, 13, 10,
-    10, 13, 14,
-    // Ninth quad
-    10, 14, 11,
-    11, 14, 15,
+    // First row (negative Z)
+    0, 1, 2, 3,    // Left quad (third)
+    4, 5, 6, 7,    // Middle quad (first)
+    8, 9, 10, 11,  // Right quad (second)
+
+    // Second row (Z = 0)
+    12, 13, 14, 15,    // Left quad (third)
+    16, 17, 18, 19,    // Middle quad (first)
+    20, 21, 22, 23,    // Right quad (second)
+
+    // Third row (positive Z)
+    24, 25, 26, 27,    // Left quad (third)
+    28, 29, 30, 31,    // Middle quad (first)
+    32, 33, 34, 35     // Right quad (second)
 };
 
-SVECTOR floor_normals[16];  // For 16 triangles
 
-
-
-struct mesh cube_mesh = {
-    cube_vertices,
-    cube_faces,
-    cube_normals,
-    ARRAY_SIZE(cube_vertices),
-    ARRAY_SIZE(cube_faces),
-    ARRAY_SIZE(cube_normals)
-};
+VECTOR floor_normals[9];  // Now 9 normals for 9 quads
 
 struct mesh floor_mesh = {
     floor_vertices,
@@ -86,17 +82,6 @@ struct mesh floor_mesh = {
 };
 
 CVECTOR floor_color = {200, 200, 255};
-CVECTOR cube_color = {255, 200, 255};
-
-struct object object_cube = {
-    {0, 0, 0},
-    {0, -400, 1800},
-    {ONE, ONE, ONE},
-    {0, 0, 0},
-    {0, 1, 0},
-    &cube_mesh,
-    {255, 200, 255}
-};
 
 struct object object_floor = {
     {0, 0, 0},
@@ -107,12 +92,6 @@ struct object object_floor = {
     &floor_mesh,
     {255, 255, 255}
 };
-
-struct object* create_cube(void) {
-    struct object *o = (struct object*)malloc3(sizeof(struct object));
-    memcpy(o, &object_cube, sizeof(struct object));
-    return o;
-}
 
 struct object* create_floor(void) {
     struct object *o = (struct object*)malloc3(sizeof(struct object));
