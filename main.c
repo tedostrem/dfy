@@ -26,7 +26,6 @@ MATRIX identity = {ONE, 0, 0, 0, ONE, 0, 0, 0, ONE};
 
 // Declarations and global variables
 struct camera cam;
-
 struct object* floor0;
 POLY_F3 *floor_polys;
 MATRIX floormat = {0};
